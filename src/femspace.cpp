@@ -127,16 +127,36 @@ namespace femspace
         }
         lagrange_left_values_ = Vandinv_.transpose() * left_values;
         lagrange_right_values_ = Vandinv_.transpose() * right_values;
-        
-        //lagrange_left_values_ = VectorXd::Zero(Np_);
-        //lagrange_right_values_ = VectorXd::Zero(Np_);
-        //lagrange_left_values_(0) = 1.654;
-        //lagrange_right_values_(0) = - 0.6547;
-        //lagrange_left_values_(1) = -0.6547;
-        //lagrange_right_values_(1) = 1.654;
-        
-        //lagrange_left_values_ = Vandinv_ * left_values;
-        //lagrange_right_values_ = Vandinv_ * right_values;
+    }
+
+    void REFFE::ComputeLagrangeExtrapolation(double xnew, FE fe, VectorXd& lagrange_values)
+    {
+        // 计算外插点的Lagrange值
+        // 将xnew映射到[-1, 1]区间
+        double x_mapped = (xnew - fe.xl_) / fe.dx_ * 2.0 - 1.0; // [-1, 1] 区间映射
+
+        VectorXd values = VectorXd::Zero(Np_);
+
+        for (int i = 0; i < Np_; i++)
+        {
+            for (int k = 0; k <= i; k++)
+            {
+                values(i) += legendre_coefs_(k, i) * std::pow(x_mapped, k);
+            }
+        }
+        lagrange_values = VectorXd::Zero(Np_);
+        lagrange_values = Vandinv_.transpose() * values;
+    }
+
+    void REFFE::ComputeFuncExtrapolation(double xnew, FE fe, VectorXd& func_values, double& fnew)
+    {
+        VectorXd lagrange_values;
+        ComputeLagrangeExtrapolation(xnew, fe, lagrange_values);
+        fnew = 0.0;
+        for (int i = 0; i < Np_; i++)
+        {
+            fnew += lagrange_values(i) * func_values(i);
+        }
     }
 
     void REFFE::MapToActualFE(FE &fe)

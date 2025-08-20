@@ -96,6 +96,8 @@ namespace femspace
             void ComputeMass();
             void ComputeStiff();
             void ComputeBCExtrap();
+            void ComputeLagrangeExtrapolation(double xnew, FE fe, VectorXd& lagrange_values);
+            void ComputeFuncExtrapolation(double xnew, FE fe, VectorXd& func_values, double& fnew);
 
             void MapToActualFE(FE& fe);
 
@@ -142,6 +144,7 @@ namespace femspace
             int GetNp() const { return Np_; }
             int GetNx() const { return Nx_; }
             std::vector<FE>& GetElems() { return elems_; }
+            REFFE* GetRefElem() { return ref_elem_; }
             std::vector<VectorXd>& GetElemBCValues() { return elem_bc_values_; }
             std::vector<MatrixXd>& GetMass() { return mass_; }
             std::vector<MatrixXd>& GetStiff() { return stiff_; }

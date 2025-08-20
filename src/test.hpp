@@ -26,6 +26,10 @@ namespace test
 
     void TestRefFE();
 
+    void TestApproximation(int order, double xl, double xr);
+
+    void TestProjection(int order, double xl, double xr);
+
     void TestElemBC();
     double TestQuadrature(int order, double xl, double xr);
 

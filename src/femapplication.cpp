@@ -84,14 +84,18 @@ namespace femapplication
                     system_rhs_vector[i].array() += velocity_ * (face_mass_left * solution_[i - 1]).array();
                 }
 
+                // 解正序
                 //solution_[i] = system_lhs_matrix[i].colPivHouseholderQr().solve(system_rhs_vector[i]);
+
+                // 解倒序
                 tmpvec2 = system_lhs_matrix[i].colPivHouseholderQr().solve(system_rhs_vector[i]);
-                //std::cout << "tmpvec " << i << ": " << tmpvec2.transpose() << std::endl;
                 for(int l=0;l<Np;l++)
                 {
                     solution_[i](l) = tmpvec2(Np-l-1);
                     //std::cout << "!!" << i << ": " << solution_[i](l) << std::endl; 
                 }
+
+
                 //std::cout << "Element " << i << " system matrix:\n" << system_lhs_matrix[i] << std::endl;
                 //std::cout << "Elemenet " << i << " stiff :\n" << femspace_->GetStiff()[i] << std::endl;
                 //std::cout << "Element " << i << " mass:\n" << femspace_->GetMass()[i] << std::endl;

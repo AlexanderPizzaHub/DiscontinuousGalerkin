@@ -4,146 +4,33 @@ namespace numerics
 {
     using namespace Eigen;
 
-    // void ComputeGaussQuadrature(int order, double xl, double xr, VectorXd &node_coords, VectorXd &node_weights)
-    // {
-    //     // TEST CORRECT
-    //     int Np = order + 1; // Gauss-Legendre求积点数
-    //     node_coords.resize(Np);
-    //     node_weights.resize(Np);
-
-    //     VectorXd y, y0, Lp;
-    //     y = VectorXd::Zero(Np);
-    //     y0 = VectorXd::Zero(Np);
-    //     Lp = VectorXd::Zero(Np);
-
-    //     MatrixXd L = MatrixXd::Zero(Np, Np + 1);
-
-    //     for (int i = 0; i < Np; i++)
-    //     {
-    //         y[i] = std::cos((2.0 * i + 1.0) * 4.0 * std::atan(1.0) / (2.0 * (Np - 1.0) + 2.0)) +
-    //                0.27 / Np * std::sin(4.0 * std::atan(1.0) * (-1.0 + i * 2.0 / (Np - 1.0)) * (Np - 1.0) / (Np + 1));
-    //         y0[i] = 2.0;
-    //     }
-
-    //     // Compute the zeros of the Np+1 Legendre Polynomial using recursion and Newton's method
-    //     while (true)
-    //     {
-    //         for (int i = 0; i < Np; ++i)
-    //         {
-    //             L(i, 0) = 1.0;
-    //             L(i, 1) = y[i];
-    //         }
-
-    //         for (int K = 2; K < Np; ++K)
-    //         {
-    //             for (int i = 0; i < Np; ++i)
-    //             {
-    //                 L(i, K) = ((2.0 * K - 1.0) * y[i] * L(i, K - 1) - (K - 1) * L(i, K - 2)) / K;
-    //             }
-    //         }
-
-    //         for (int i = 0; i < Np; ++i)
-    //         {
-    //             Lp[i] = (Np + 1) * (L(i, Np - 1) - y[i] * L(i, Np)) / (1.0 - y[i] * y[i]);
-    //         }
-
-    //         y0 = y;
-    //         for (int i = 0; i < Np; ++i)
-    //         {
-    //             y[i] = y0[i] - L(i, Np) / Lp[i];
-    //         }
-
-    //         double max_diff = 0.0;
-    //         for (int i = 0; i < Np; ++i)
-    //         {
-    //             max_diff = std::max(max_diff, std::abs(y[i] - y0[i]));
-    //         }
-
-    //         if (max_diff < 1.0e-13)
-    //         {
-    //             break;
-    //         }
-    //     }
-
-    //     // Linear map from [-1, 1] to [a, b]
-    //     for (int i = 0; i < Np; ++i)
-    //     {
-    //         node_coords[i] = (xl * (1.0 - y[i]) + xr * (1.0 + y[i])) / 2.0;
-    //         node_weights[i] = (Np + 1) * (Np + 1) * (xr - xl) / ((1.0 - y[i] * y[i]) * Lp[i] * Lp[i]) / (Np * Np);
-    //     }
-    // }
-
-    void ComputeGaussQuadrature(int order, double xl, double xr, VectorXd &node_coords, VectorXd &node_weights) {
-        if (order <= 0) {
+    void ComputeGaussQuadrature(int order, double xl, double xr, VectorXd &node_coords, VectorXd &node_weights)
+    {
+        if (order <= 0)
+        {
             throw std::invalid_argument("order must be positive");
         }
         int n = order + 1; // Gauss-Legendre求积点数
-    
+
         // 创建对称三对角矩阵
         MatrixXd T = MatrixXd::Zero(n, n);
-        for (int i = 1; i < n; ++i) {
+        for (int i = 1; i < n; ++i)
+        {
             double d = i / std::sqrt(4.0 * i * i - 1.0);
-            T(i, i-1) = d;
-            T(i-1, i) = d;
+            T(i, i - 1) = d;
+            T(i - 1, i) = d;
         }
-    
+
         // 计算特征值和特征向量
         SelfAdjointEigenSolver<MatrixXd> solver(T);
         VectorXd eigenvalues = solver.eigenvalues();
         MatrixXd eigenvectors = solver.eigenvectors();
-    
+
         // 求积点为特征值
-        node_coords = (eigenvalues.array())* (xr - xl) / 2.0 + (xr + xl) / 2.0;
-    
+        node_coords = (eigenvalues.array()) * (xr - xl) / 2.0 + (xr + xl) / 2.0;
+
         // 权重为第一行特征向量的平方乘以2
-        node_weights = (2.0 * eigenvectors.row(0).array().square())* (xr - xl) / 2.0;
-    }
-
-    void ComputeJacobiQuadrature(int order, double alpha, double beta, VectorXd &node_coords, VectorXd &node_weights)
-    {
-        // TEST NOT CORRECT
-
-        int Np = order + 1;
-
-        if (Np == 1)
-        {
-            node_coords.resize(1);
-            node_weights.resize(1);
-            node_coords(0) = (alpha - beta) / (alpha + beta + 2.0);
-            return;
-        }
-
-        MatrixXd J = MatrixXd::Zero(Np, Np);
-        VectorXd h1 = 2.0 * VectorXd::LinSpaced(Np, 0, Np - 1).array() + alpha + beta;
-        // std::cout << h1.transpose() << std::endl;
-
-        for (int i = 0; i < Np; ++i)
-        {
-            if (i < Np - 1)
-            {
-                // double a = 2.0 / ((h1(i) + 2.0) * std::sqrt((i + 1.0) * (i + 1.0 + alpha + beta) * (i + 1.0 + alpha) * (i + 1.0 + beta) / ((h1(i) + 1.0) * (h1(i) + 3.0))));
-                double a = 2.0 / (h1(i + 1) + 2.0) * std::sqrt((i + 1.0) * (i + 1.0 + alpha + beta) * (i + 1.0 + alpha) * (i + 1.0 + beta) / ((h1(i + 1) + 1.0) * (h1(i + 1) + 3.0)));
-                J(i, i + 1) = a;
-                J(i + 1, i) = a;
-            }
-            // J(i, i) = -0.5 * (alpha * alpha - beta * beta) / ((h1(i) + 2.0) * h1(i));
-            J(i, i) = -(alpha * alpha - beta * beta) / ((h1(i) + 2.0) * h1(i));
-        }
-
-        if (std::abs(alpha + beta) < 10 * std::numeric_limits<double>::epsilon())
-        {
-            J(0, 0) = 0.0;
-        }
-        //std::cout << J << std::endl;
-
-        // Compute quadrature by eigenvalue solve
-        SelfAdjointEigenSolver<MatrixXd> solver(J);
-        VectorXd x = solver.eigenvalues();
-        MatrixXd V = solver.eigenvectors();
-
-        node_coords = x;
-        node_weights = V.row(0).array().square() * std::pow(2.0, alpha + beta + 1.0) / (alpha + beta + 1.0) * std::tgamma(alpha + 1.0) * std::tgamma(beta + 1.0) / std::tgamma(alpha + beta + 1.0);
-        return;
+        node_weights = (2.0 * eigenvectors.row(0).array().square()) * (xr - xl) / 2.0;
     }
 
     void ComputeJacobiCoefficients(int order, double alpha, double beta, MatrixXd &coeffs)
@@ -161,11 +48,11 @@ namespace numerics
             return;
         }
 
-        //coeffs(0, 0) = std::sqrt(
-        //    std::pow(2.0, -alpha - beta - 1.0) * std::tgamma(alpha + beta + 2.0) / (std::tgamma(beta + 1.0) * std::tgamma(alpha + 1.0)));
+        // coeffs(0, 0) = std::sqrt(
+        //     std::pow(2.0, -alpha - beta - 1.0) * std::tgamma(alpha + beta + 2.0) / (std::tgamma(beta + 1.0) * std::tgamma(alpha + 1.0)));
 
         tmp = 0.5 * coeffs(0, 0) * std::sqrt((alpha + beta + 3.0) / ((alpha + 1.0) * (beta + 1.0)));
-        //std::cout << tmp << std::endl;
+        // std::cout << tmp << std::endl;
         coeffs(0, 1) = tmp * (alpha - beta);
         coeffs(1, 1) = tmp * (alpha + beta + 2.0);
 
@@ -196,25 +83,184 @@ namespace numerics
 
             anprev = an;
         }
-        //std::cout << coeffs << std::endl;
+         // std::cout << coeffs << std::endl;
         return;
     }
 
-    double ComputeConditionNumber(const Eigen::MatrixXd& A) {
-        // 使用奇异值分解
-        Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
-    
-        // 获取奇异值
-        double max_singular = svd.singularValues()(0); // 最大奇异值
-        double min_singular = svd.singularValues()(svd.singularValues().size() - 1); // 最小奇异值
-    
-        // 如果最小奇异值为 0，条件数为无穷大
-        if (min_singular == 0) {
-            return std::numeric_limits<double>::infinity();
-        }
-    
-        // 返回条件数
-        return max_singular / min_singular;
-    }
+    void ComputeJacobiCoefficients_deepseek(int order, double alpha, double beta, MatrixXd &coeffs)
+    {
+        // 计算Jacobi多项式的系数矩阵
+        // 返回的矩阵大小为 (n+1) x (n+1)，第j列存储j阶Jacobi多项式的系数
+            if (order <= 0)
+            {
+                throw std::invalid_argument("order must be positive");
+            }
+            if (alpha <= -1.0 || beta <= -1.0)
+            {
+                throw std::invalid_argument("alpha and beta must be > -1");
+            }
+            int n = order + 1;
+   
+            coeffs = MatrixXd::Zero(n, n);
 
-}
+            // 0阶Jacobi多项式: P_0^{(α,β)}(x) = 1
+            coeffs(0, 0) = 1.0;
+
+            if (order >= 1)
+            {
+                // 1阶Jacobi多项式: P_1^{(α,β)}(x) = (α - β + (α + β + 2)x)/2
+                coeffs(0, 1) = (alpha - beta) / 2.0;
+                coeffs(1, 1) = (alpha + beta + 2.0) / 2.0;
+                if(order == 1){return;}
+            }
+
+            
+            // 使用递推关系计算高阶Jacobi多项式系数
+            for (int j = 2; j < n; ++j)
+            {
+                // 递推系数
+                double a1 = 2.0 * j * (j + alpha + beta) * (2.0 * j + alpha + beta - 2.0);
+                double a2 = (2.0 * j + alpha + beta - 1.0) * (alpha * alpha - beta * beta);
+                double a3 = (2.0 * j + alpha + beta - 2.0) * (2.0 * j + alpha + beta - 1.0) * (2.0 * j + alpha + beta);
+                double a4 = 2.0 * (j + alpha - 1.0) * (j + beta - 1.0) * (2.0 * j + alpha + beta);
+
+                // 递推关系:
+                // P_j^{(α,β)}(x) = [(a2 + a3*x) * P_{j-1}^{(α,β)}(x) - a4 * P_{j-2}^{(α,β)}(x)] / a1
+
+                // 计算 (a2 + a3*x) * P_{j-1}^{(α,β)}(x)
+                VectorXd term1 = VectorXd::Zero(j + 1);
+                for (int i = 0; i < j; ++i)
+                {
+                    term1(i) += (a2 / a1) * coeffs(i, j - 1);     // a2 * P_{j-1}
+                    term1(i + 1) += (a3 / a1) * coeffs(i, j - 1); // a3 * x * P_{j-1}
+                }
+
+                // 计算 a4 * P_{j-2}^{(α,β)}(x)
+                VectorXd term2 = VectorXd::Zero(j + 1);
+                for (int i = 0; i < j - 1; ++i)
+                {
+                    term2(i) += (a4 / a1) * coeffs(i, j - 2);
+                }
+
+                // 组合得到P_j^{(α,β)}(x)
+                for (int i = 0; i <= j; ++i)
+                {
+                    coeffs(i, j) = term1(i) - term2(i);
+                }
+            }
+            return;
+        }
+
+        double ComputeConditionNumber(const Eigen::MatrixXd &A)
+        {
+            // 使用奇异值分解
+            Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+
+            // 获取奇异值
+            double max_singular = svd.singularValues()(0);                               // 最大奇异值
+            double min_singular = svd.singularValues()(svd.singularValues().size() - 1); // 最小奇异值
+
+            // 如果最小奇异值为 0，条件数为无穷大
+            if (min_singular == 0)
+            {
+                return std::numeric_limits<double>::infinity();
+            }
+
+            // 返回条件数
+            return max_singular / min_singular;
+        }
+
+        MatrixXd ComputeJacobiMatrix(int n, double alpha, double beta)
+        {
+            MatrixXd J = MatrixXd::Zero(n, n);
+
+            for (int i = 0; i < n; ++i)
+            {
+                // 对角元素
+                double a = (beta * beta - alpha * alpha) /
+                           ((2.0 * i + alpha + beta) * (2.0 * i + alpha + beta + 2.0));
+                J(i, i) = a;
+
+                // 非对角元素
+                if (i < n - 1)
+                {
+                    double b = 2.0 / (2.0 * i + alpha + beta + 2.0) *
+                               std::sqrt((i + 1.0) * (i + alpha + 1.0) *
+                                         (i + beta + 1.0) * (i + alpha + beta + 1.0) /
+                                         ((2.0 * i + alpha + beta + 1.0) *
+                                          (2.0 * i + alpha + beta + 3.0)));
+                    J(i, i + 1) = b;
+                    J(i + 1, i) = b;
+                }
+            }
+
+            return J;
+        }
+
+        // 计算Gamma函数近似值
+        double gamma_function(double x)
+        {
+            // Lanczos近似公式
+            const double g = 7.0;
+            const double p[] = {0.99999999999980993, 676.5203681218851, -1259.1392167224028,
+                                771.32342877765313, -176.61502916214059, 12.507343278686905,
+                                -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7};
+
+            if (x < 0.5)
+            {
+                return M_PI / (std::sin(M_PI * x) * gamma_function(1.0 - x));
+            }
+
+            x -= 1.0;
+            double a = p[0];
+            double t = x + g + 0.5;
+
+            for (int i = 1; i < 9; ++i)
+            {
+                a += p[i] / (x + i);
+            }
+
+            return std::sqrt(2.0 * M_PI) * std::pow(t, x + 0.5) * std::exp(-t) * a;
+        }
+
+        // 计算Jacobi求积点和权重
+        // void ComputeJacobiQuadrature(int order, double alpha, double beta, VectorXd &node_coords, VectorXd &node_weights)
+        // {
+        //     if (order <= 0)
+        //     {
+        //         throw std::invalid_argument("n must be positive");
+        //     }
+        //     if (alpha <= -1.0 || beta <= -1.0)
+        //     {
+        //         throw std::invalid_argument("alpha and beta must be > -1");
+        //     }
+
+        //     int n = order + 1; // Jacobi求积点数
+        //     // 计算Jacobi矩阵
+        //     MatrixXd J = ComputeJacobiMatrix(n, alpha, beta);
+
+        //     // 计算特征值和特征向量
+        //     SelfAdjointEigenSolver<MatrixXd> solver(J);
+        //     VectorXd eigenvalues = solver.eigenvalues();
+        //     MatrixXd eigenvectors = solver.eigenvectors();
+
+        //     // 求积点为特征值
+        //     node_coords = eigenvalues;
+
+        //     // 计算权重
+        //     node_weights.resize(n);
+
+        //     // 计算归一化常数
+        //     double mu0 = std::pow(2.0, alpha + beta + 1.0) *
+        //                  gamma_function(alpha + 1.0) *
+        //                  gamma_function(beta + 1.0) /
+        //                  gamma_function(alpha + beta + 2.0);
+
+        //     // 权重计算
+        //     for (int i = 0; i < n; ++i)
+        //     {
+        //         double phi0 = eigenvectors(0, i);
+        //         node_weights(i) = mu0 * phi0 * phi0;
+        //     }
+        // }
+    }

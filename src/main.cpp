@@ -11,25 +11,27 @@
 
 int main(int argc, char *argv[])
 {
-     test::TestQuadrature();
+    // test::TestQuadrature();
+    // test::TestQuadrature(5, -1.0, 1.0);
     // test::TestJacobiCoef();
     // test::TestMesh();
     // test::TestRefFE();
     // test::TestElemBC();
-    
-    //for (int NxRefine = 2; NxRefine <= 8; NxRefine++)
-    //{
-        // for (int order = 1; order <= 10; order++)
-        // {
-        //     //double l2error = test::TestHyperbolic(order, std::pow(2, NxRefine));
-        //     double l2error = test::TestHyperbolic(order, 1);
-        //     std::cout << "Order: " << order << ", Nx: " << 1<< ", L2 Error: " << l2error << std::endl;
-        // }
-    //}
-    //double l2error = test::TestHyperbolic(2, 1);
-    //std::cout << "L2 Error: " << l2error << std::endl;
 
-    //test::TestQuadrature(5, -1.0, 1.0);
+    // for(int order= 1; order <= 10; order++)
+    // {
+    //     test::TestApproximation(order, 0.0, 1.0);
+    // }
+    // test::TestProjection(1, 0.0, 1.0);
+
+    for (int NxRefine = 0; NxRefine <= 3; NxRefine++)
+    {
+        for (int order = 1; order <= 10; order++)
+        {
+            double l2error = test::TestHyperbolic(order, std::pow(2, NxRefine));
+            std::cout << "Order: " << order << ", Nx: " << std::pow(2, NxRefine) << ", L2 Error: " << l2error << std::endl;
+        }
+    }
 
     return 0;
 }
