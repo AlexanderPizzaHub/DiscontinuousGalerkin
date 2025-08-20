@@ -5,13 +5,13 @@ namespace femspace
     using namespace Eigen;
 
 #pragma region FE
-    FE::FE(int Np, double xl, double xr)
-        : Np_(Np), xl_(xl), xr_(xr), dx_(xr - xl)
+    FE::FE(int order, double xl, double xr)
+        : Np_(order+1), order_(order), xl_(xl), xr_(xr), dx_(xr - xl)
     {
         // Initialize the quadrature points and weights
         VectorXd node_weights;
         // numerics::ComputeGaussLobattoQuadrature(Np_, node_coords, node_weights);
-        numerics::ComputeGaussQuadrature(Np_, xl, xr, node_coords_, node_weights);
+        numerics::ComputeGaussQuadrature(order, xl, xr, node_coords_, node_weights);
 
         node_values_ = VectorXd::Zero(Np_);
     }
@@ -182,11 +182,8 @@ namespace femspace
         mesh_ = &mesh;
         order_ = order;
         Np_ = order + 1; // 插值点数
-
-        // ref_elem_ = new REFFE(order);
-
         Nx_ = mesh.GetNumCells(); // 单元数目
-        // elems_.resize(Nx_);
+        
         mass_.resize(Nx_);
         stiff_.resize(Nx_);
         rhs_.resize(Nx_);
@@ -209,7 +206,7 @@ namespace femspace
             elem_bc_values_[i] = VectorXd::Zero(2);
             xl = vert_coords(elem2vert_indices(i, 0));
             xr = vert_coords(elem2vert_indices(i, 1));
-            elems_.push_back(FE(Np_, xl, xr)); // 初始化单元
+            elems_.push_back(FE(order, xl, xr)); // 初始化单元
 
             quad_weights_[i] = ref_elem_->node_weights_.array() * elems_[i].dx_ * 0.5; // 求积权重
         }
@@ -245,8 +242,7 @@ namespace femspace
     {
         VectorXd &lagrange_left_values = ref_elem_->lagrange_left_values_;
         VectorXd &lagrange_right_values = ref_elem_->lagrange_right_values_;
-        //std::cout << "Lagrange left values: " << lagrange_left_values.transpose() << std::endl;
-        //std::cout << "Lagrange right values: " << lagrange_right_values.transpose() << std::endl;
+
         for (int i = 0; i < Np_; i++)
         {
             for (int j = 0; j < Np_; j++)

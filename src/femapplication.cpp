@@ -38,12 +38,19 @@ namespace femapplication
         for (int i = 0; i < Nx; i++)
         {
             system_lhs_matrix[i] = velocity_ * face_mass_right - velocity_ * stiff[i] - delta_ * mass[i];
-            //std::cout << "Elemenet "<< i << " face mass right:\n" << face_mass_right << std::endl;
         }
     }
 
     void Hyperbolic::Solve()
     {
+        /*
+        总结bug：
+        1. 一堆奇奇怪怪的矩阵向量转置出问题
+        2. 误差统一放到体心上计算
+        3. 单元左右面通量的计算有问题，已debug。
+        4. 注意Np和order的区别。elem和refelem的order全部传成np了。
+        */
+
         int Nx = femspace_->GetNx();
         int Np = femspace_->GetNp();
 
@@ -58,21 +65,18 @@ namespace femapplication
         std::vector<VectorXd> S_values = femspace_->Interpolate(settings::hyperbolic::S);
 
         // 获取参考元的相关数据，用于后续计算
-        MatrixXd face_mass_left = femspace_->GetFaceMassLeft();
         VectorXd lagrange_left_values = femspace_->GetLagrangeLeftValues();
+        VectorXd lagrange_right_values = femspace_->GetLagrangeRightValues();
         std::vector<MatrixXd> &mass = femspace_->GetMass();
 
         double residual = 99999.0;
         int iter = 0;
         VectorXd tmpvec = VectorXd::Zero(Np);
-        VectorXd tmpvec2 = VectorXd::Zero(Np);
         while (iter < 100000 && residual > 1e-10)
         {
-            //std::cout << "Iteration: " << iter << std::endl;
             for (int i = 0; i < Nx; i++)
             {
                 tmpvec = (solution_old[i].array() * (G_values[i].array() - delta_) + S_values[i].array());
-                //system_rhs_vector[i] = mass[i].array() * (solution_old[i].array() * (G_values[i].array() - delta_) + S_values[i].array())
                 system_rhs_vector[i] = mass[i] * tmpvec;
 
                 if (i == 0)
@@ -81,32 +85,12 @@ namespace femapplication
                 }
                 else
                 {
-                    system_rhs_vector[i].array() += velocity_ * (face_mass_left * solution_[i - 1]).array();
+                    system_rhs_vector[i].array() += velocity_ * (solution_[i - 1].dot(lagrange_right_values)) * lagrange_left_values.array();
                 }
 
-                // 解正序
-                //solution_[i] = system_lhs_matrix[i].colPivHouseholderQr().solve(system_rhs_vector[i]);
-
-                // 解倒序
-                tmpvec2 = system_lhs_matrix[i].colPivHouseholderQr().solve(system_rhs_vector[i]);
-                for(int l=0;l<Np;l++)
-                {
-                    solution_[i](l) = tmpvec2(Np-l-1);
-                    //std::cout << "!!" << i << ": " << solution_[i](l) << std::endl; 
-                }
-
-
-                //std::cout << "Element " << i << " system matrix:\n" << system_lhs_matrix[i] << std::endl;
-                //std::cout << "Elemenet " << i << " stiff :\n" << femspace_->GetStiff()[i] << std::endl;
-                //std::cout << "Element " << i << " mass:\n" << femspace_->GetMass()[i] << std::endl;
-                //std::cout << "Element " << i << " face mass left:\n" << face_mass_left << std::endl;
-                //std::cout << "Element " << i << " system rhs:\n" << system_rhs_vector[i].transpose() << std::endl;
-                //std::cout << "Element " << i << " solution:\n" << solution_[i].transpose() << std::endl;
-
-                /*
-                总结bug：一堆奇奇怪怪的矩阵向量转置出问题
-                */
+                solution_[i] = system_lhs_matrix[i].colPivHouseholderQr().solve(system_rhs_vector[i]);
             }
+
             // 计算残差
             residual = 0.0;
             for (int i = 0; i < Nx; i++)
@@ -115,7 +99,6 @@ namespace femapplication
                 solution_old[i] = solution_[i];
             }
             iter++;
-            //std::cout << "Iteration: " << iter << ", Residual: " << residual << std::endl;
         }
     }
 

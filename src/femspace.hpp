@@ -50,10 +50,11 @@ namespace femspace
     class FE
     {
         public:
-            FE(int Np, double xl, double xr);
+            FE(int order, double xl, double xr);
             ~FE() = default;
 
             int Np_; // 插值点数 >= 1
+            int order_;
 
             // 几何
             const double xl_; // 左侧顶点坐标

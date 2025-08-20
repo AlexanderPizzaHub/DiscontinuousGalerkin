@@ -24,12 +24,13 @@ int main(int argc, char *argv[])
     // }
     // test::TestProjection(1, 0.0, 1.0);
 
-    for (int NxRefine = 0; NxRefine <= 3; NxRefine++)
+    std::cout << "order Nx err" <<std::endl;
+    for (int NxRefine = 0; NxRefine <= 10; NxRefine++)
     {
         for (int order = 1; order <= 10; order++)
         {
             double l2error = test::TestHyperbolic(order, std::pow(2, NxRefine));
-            std::cout << "Order: " << order << ", Nx: " << std::pow(2, NxRefine) << ", L2 Error: " << l2error << std::endl;
+            std::cout << order << " " << std::pow(2, NxRefine) << " " << l2error << std::endl;
         }
     }
 

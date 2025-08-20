@@ -11,7 +11,7 @@ namespace femmesh
     {
         Nx_ = cell_indices.size(); // Number of cells
         // Convert input vectors to Eigen types
-        //std::cout << Nx_ << std::endl;
+
         vert_coords_.resize(Nx_ + 1,1); // Nx+1 vertices for 1D mesh
         vert_indices_.resize(Nx_ + 1);
         cell_indices_.resize(Nx_);
@@ -41,7 +41,6 @@ namespace femmesh
         face_normals_.resize(Nx_, 2); // Assuming 2D elements
         double xl, xr;
         for (int i = 0; i < Nx_; ++i) {
-            //std::cout << elem2vert_indices_(i, 0) << " " << elem2vert_indices_(i, 1) << std::endl;
             xl = vert_coords_(elem2vert_indices_(i, 0),0);
             xr = vert_coords_(elem2vert_indices_(i, 1),0);
             elem_areas_(i) = std::abs(xr-xl); // Length of the edge in 1D case
@@ -50,6 +49,5 @@ namespace femmesh
             face_normals_(i, 0) = -1.0; // left
             face_normals_(i, 1) = 1.0 ; // right
         }
-        //std::cout << "!!" << std::endl;
     }
 }

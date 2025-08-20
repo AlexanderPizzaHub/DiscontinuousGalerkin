@@ -301,17 +301,17 @@ namespace test
             center_x = (fe.xl_ + fe.xr_) / 2.0;
             ref_elem->ComputeFuncExtrapolation(center_x, fe, solution[i],approx_solution(i));
 
-            std::cout << "Element solution at " << center_x << ": " << solution[i].transpose()<< std::endl;
-            std::cout << "Corresponding coords: "<< fe.node_coords_.transpose() << std::endl;
+            //std::cout << "Element solution at " << center_x << ": " << solution[i].transpose()<< std::endl;
+            //std::cout << "Corresponding coords: "<< fe.node_coords_.transpose() << std::endl;
             
             exact_solution(i) = settings::hyperbolic::Truth(center_x);
         }
 
         double l2_error = (approx_solution - exact_solution).norm() / std::sqrt(Nx);
-        std::cout << "Approximation: " << std::endl;
-        std::cout << approx_solution.transpose() << std::endl;
-        std::cout << "Exact Solution: " << std::endl;
-        std::cout << exact_solution.transpose() << std::endl;
+        //std::cout << "Approximation: " << std::endl;
+        // std::cout << approx_solution.transpose() << std::endl;
+        // std::cout << "Exact Solution: " << std::endl;
+        // std::cout << exact_solution.transpose() << std::endl;
 
         return l2_error;
     }
