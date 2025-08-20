@@ -4,6 +4,7 @@ namespace femapplication
 {
     using namespace Eigen;
 
+#pragma region "Hyperbolic Application"
     Hyperbolic::Hyperbolic(femspace::FEMSpace &femspace, double left_bc_value, double right_bc_value, double velocity, double delta)
         : femspace_(&femspace), left_bc_value_(left_bc_value), right_bc_value_(right_bc_value), velocity_(velocity), delta_(delta)
     {
@@ -102,8 +103,439 @@ namespace femapplication
         }
     }
 
+    void Hyperbolic::Solve(const MatrixXd G, const MatrixXd S, MatrixXd &solution)
+    {
+        solution = MatrixXd::Zero(femspace_->GetNx(), femspace_->GetNp());
+        int Nx = femspace_->GetNx();
+        int Np = femspace_->GetNp();
+
+        MatrixXd solution_old = MatrixXd::Zero(Nx, Np);
+
+        // 获取参考元的相关数据，用于后续计算
+        VectorXd lagrange_left_values = femspace_->GetLagrangeLeftValues();
+        VectorXd lagrange_right_values = femspace_->GetLagrangeRightValues();
+        std::vector<MatrixXd> &mass = femspace_->GetMass();
+
+        double residual = 99999.0;
+        int iter = 0;
+        VectorXd tmpvec = VectorXd::Zero(Np);
+        while (iter < 100000 && residual > 1e-10)
+        {
+            for (int i = 0; i < Nx; i++)
+            {
+                tmpvec = (solution_old.row(i).array() * (G.row(i).array() - delta_) + S.row(i).array());
+                system_rhs_vector[i] = mass[i] * tmpvec;
+
+                if (i == 0)
+                {
+                    system_rhs_vector[i].array() += velocity_ * left_bc_value_ * lagrange_left_values.array();
+                }
+                else
+                {
+                    system_rhs_vector[i].array() += velocity_ * (solution.row(i - 1).dot(lagrange_right_values)) * lagrange_left_values.array();
+                }
+
+                solution.row(i) = system_lhs_matrix[i].colPivHouseholderQr().solve(system_rhs_vector[i]);
+            }
+
+            // 计算残差
+            residual = 0.0;
+            residual = (solution - solution_old).norm();
+            solution_old = solution;
+            iter++;
+        }
+    }
+
     void Hyperbolic::OutputResults(const std::string &filename)
     {
         return;
     }
+#pragma endregion
+
+#pragma region "Shakhov 1D 1V Application"
+    Shakhov1D1V::Shakhov1D1V(std::vector<double> v, femspace::FEMSpace &femspace)
+        : v_vec_(v), femspace_(&femspace)
+    {
+        // assert v strictly increasing
+        Nv_ = v.size();
+        Nx_ = femspace_->GetNx();
+        Np_ = femspace_->GetNp();
+
+        f1_.resize(Nv_);
+        f2_.resize(Nv_);
+
+        S1_.resize(Nv_);
+        S2_.resize(Nv_);
+
+        for (int i = 0; i < Nv_; ++i)
+        {
+            f1_[i] = MatrixXd::Zero(Nx_, Np_);
+            f2_[i] = MatrixXd::Zero(Nx_, Np_);
+
+            S1_[i] = MatrixXd::Zero(Nx_, Np_);
+            S2_[i] = MatrixXd::Zero(Nx_, Np_);
+        }
+
+        G_ = MatrixXd::Zero(femspace_->GetNx(), femspace_->GetNp());
+
+        f1_bc_left_ = VectorXd::Zero(Nv_);
+        f1_bc_right_ = VectorXd::Zero(Nv_);
+        f2_bc_left_ = VectorXd::Zero(Nv_);
+        f2_bc_right_ = VectorXd::Zero(Nv_);
+
+        f1_left_values_ = VectorXd::Zero(Nv_);
+        f1_right_values_ = VectorXd::Zero(Nv_);
+
+        macro_density_ = MatrixXd::Zero(Nx_);
+        macro_velocity_ = MatrixXd::Zero(Nx_);
+        macro_temperature_ = MatrixXd::Zero(Nx_);
+        macro_energy_flux_ = MatrixXd::Zero(Nx_);
+    }
+
+    void Shakhov1D1V::UpdateMacroVariables()
+    {
+        MatrixXd tmp_mat = MatrixXd::Zero(Nx_, Np_); // inter mat
+
+        VectorXd tmp_vec = VectorXd::Zero(Nv_); // inter vec
+        double tmp_var = 0.0;                   // inter var
+
+        double T, q;
+        // mass
+        numerics::Trapezoid(f1_, v_vec_, macro_density_);
+
+        // velocity
+        numerics::Trapezoid(f1_, v_vec_, v_vec_, tmp_mat);
+        macro_velocity_ = tmp_mat.array() / macro_density_.array();
+
+        // temperature and energy flux
+        std::vector<MatrixXd> therm_rhs;
+        std::vector<MatrixXd> flux_rhs;
+        therm_rhs.resize(Nv_);
+        flux_rhs.resize(Nv_);
+        for (int i = 0; i < Nv_; ++i)
+        {
+            therm_rhs[i] = MatrixXd::Zero(Nx_, Np_);
+            flux_rhs[i] = MatrixXd::Zero(Nx_, Np_);
+        }
+
+        double v;
+        MatrixXd therm_speed = MatrixXd::Zero(Nx_, Np_);
+        for (int vi = 0; vi < Nv_; vi++)
+        {
+            v = v_vec_[vi];
+            therm_speed = v - macro_velocity_.array();
+            therm_rhs[vi] = therm_speed.array().square() * f1_[vi].array() + f2_[vi].array();
+            flux_rhs[vi] = therm_speed.array() * therm_rhs[vi].array();
+        }
+        numerics::Trapezoid(therm_rhs, v_vec_, tmp_mat);
+        macro_temperature_ = 2.0 * tmp_mat.array() / (3.0 * macro_density_.array());
+        numerics::Trapezoid(flux_rhs, v_vec_, macro_energy_flux_);
+
+        std::cout << "Macro density: " << macro_density_.transpose() << std::endl;
+        std::cout << "Macro velocity: " << macro_velocity_.transpose() << std::endl;
+        std::cout << "Macro temperature: " << macro_temperature_.transpose() << std::endl;
+        std::cout << "Macro energy flux: " << macro_energy_flux_.transpose() << std::endl;
+    }
+
+    void Shakhov1D1V::UpdateF1BoundaryValues()
+    {
+        femspace::REFFE *ref_elem = femspace_->GetRefElem();
+        VectorXd lagrange_left_values = ref_elem->lagrange_left_values_;
+        VectorXd lagrange_right_values = ref_elem->lagrange_right_values_;
+
+        VectorXd f1_left_cell = VectorXd::Zero(Np_);
+        VectorXd f1_right_cell = VectorXd::Zero(Np_);
+
+        for (int vi = 0; vi < Nv_; vi++)
+        {
+            f1_left_cell = f1_[vi].row(0).transpose();
+            f1_right_cell = f1_[vi].row(Nx_ - 1).transpose();
+
+            f1_left_values_(vi) = f1_left_cell.dot(lagrange_left_values);
+            f1_right_values_(vi) = f1_right_cell.dot(lagrange_right_values);
+        }
+    }
+
+    void Shakhov1D1V::UpdateBCDensity()
+    {
+        // fully diffuse wall
+        double T_wall_l = settings::shakhov::T_wall_l;
+        double T_wall_r = settings::shakhov::T_wall_r;
+        double u_wall_l = settings::shakhov::u_wall_l;
+        double u_wall_r = settings::shakhov::u_wall_r;
+
+        double left_in = 0.0, left_out = 0.0;
+        double right_in = 0.0, right_out = 0.0;
+
+        std::vector<double> left_in_rhs, left_out_rhs, right_in_rhs, right_out_rhs;
+        left_in_rhs.resize(Nv_);
+        left_out_rhs.resize(Nv_);
+        right_in_rhs.resize(Nv_);
+        right_out_rhs.resize(Nv_);
+        for (int vi = 0; vi < Nv_; vi++)
+        {
+            double v = v_vec_[vi];
+            left_in_rhs[vi] = 0.0;
+            left_out_rhs[vi] = 0.0;
+            right_in_rhs[vi] = 0.0;
+            right_out_rhs[vi] = 0.0;
+
+            if (v >= settings::shakhov::u_wall_l)
+            {
+                left_in_rhs[vi] = (v - u_wall_l) * std::sqrt(1.0 / (M_PI * T_wall_l)) * std::exp(-(v - u_wall_l) * (v - u_wall_l) / T_wall_l);
+            }
+            if (v <= settings::shakhov::u_wall_l)
+            {
+                // left_out_rhs[vi] = (v - u_wall_l) * f1_(0, vi);
+                left_out_rhs[vi] = (v - u_wall_l) * f1_left_values_(vi);
+            }
+
+            if (v <= settings::shakhov::u_wall_r)
+            {
+                right_in_rhs[vi] = (v - u_wall_r) * std::sqrt(1.0 / (M_PI * T_wall_r)) * std::exp(-(v - u_wall_r) * (v - u_wall_r) / T_wall_r);
+            }
+            if (v >= settings::shakhov::u_wall_r)
+            {
+                // right_out += (v - u_wall_r) * f1_(2 * Nx_ - 1, vi) * dv_;
+                right_out_rhs[vi] = (v - u_wall_r) * f1_right_values_(vi);
+            }
+        }
+        numerics::Trapezoid(left_in_rhs, v_vec_, left_in);
+        numerics::Trapezoid(left_out_rhs, v_vec_, left_out);
+        numerics::Trapezoid(right_in_rhs, v_vec_, right_in);
+        numerics::Trapezoid(right_out_rhs, v_vec_, right_out);
+
+        bc_density_left_ = -left_out / left_in;
+        bc_density_right_ = -right_out / right_in;
+        bc_temperature_left_ = T_wall_l;
+        bc_temperature_right_ = T_wall_r;
+        // std::cout << "bc_density_left: " << bc_density_left_ << ", bc_temperature_left: " << T_wall_l << std::endl;
+    }
+
+    void Shakhov1D1V::UpdateBCVDF()
+    {
+        double v;
+        double u_l = settings::shakhov::u_wall_l;
+        double u_r = settings::shakhov::u_wall_r;
+
+        for (int vi = 0; vi <= Nv_; vi++)
+        {
+            v = v_vec_[vi];
+
+            f1_bc_left_(vi) = bc_density_left_ / (std::sqrt(M_PI * bc_temperature_left_)) * std::exp(-(v - u_l) * (v - u_l) / bc_temperature_left_);
+
+            f1_bc_right_(vi) = bc_density_right_ / (std::sqrt(M_PI * bc_temperature_right_)) * std::exp(-(v - u_r) * (v - u_r) / bc_temperature_right_);
+
+            f2_bc_left_(vi) = f1_bc_left_(vi) * bc_temperature_left_;
+            f2_bc_right_(vi) = f1_bc_right_(vi) * bc_temperature_right_;
+
+            /*
+            f1_bc_left_(vi) = bc_density_left_ / (std::sqrt(M_PI * constants::T_wall_l)) * std::exp(-(v - u_l) * (v - u_l) / constants::T_wall_l);
+
+            f1_bc_right_(vi) = bc_density_right_ / (std::sqrt(M_PI * constants::T_wall_r)) * std::exp(-(v - u_r) * (v - u_r) / constants::T_wall_r);
+
+
+            f2_bc_left_(vi) = f1_bc_left_(vi) * constants::T_wall_l;
+            f2_bc_right_(vi) = f1_bc_right_(vi) * constants::T_wall_r;
+            */
+
+            // std::cout << "f1_bc_left: " << f1_bc_left_(vi) << ", f1_bc_right: " << f1_bc_right_(vi) << std::endl;
+            // std::cout << "f2_bc_left: " << f2_bc_left_(vi) << ", f2_bc_right: " << f2_bc_right_(vi) << std::endl;
+        }
+    }
+
+    void Shakhov1D1V::ComputeSourceFs()
+    {
+        MatrixXd nu = MatrixXd::Zero(Nx_, Np_);
+
+        nu = settings::shakhov::delta_0 * macro_density_.array() * macro_temperature_.array().pow(1.0 - settings::shakhov::omega);
+        G_.array() = -nu;
+
+        MatrixXd therm_v = MatrixXd::Zero(Nx_, Np_);
+
+        MatrixXd f1s = MatrixXd::Zero(Nx_, Np_);
+        MatrixXd f2s = MatrixXd::Zero(Nx_, Np_);
+
+        MatrixXd fs_tmp = MatrixXd::Zero(Nx_, Np_);
+        MatrixXd energy_flux_tmp = MatrixXd::Zero(Nx_, Np_);
+
+        for (int vi = 0; vi < Nv_; vi++)
+        {
+            therm_v = v_vec_[vi] - macro_velocity_.array();
+
+            fs_tmp = macro_density_.array() / (M_PI * macro_temperature_.array()).sqrt() *
+                     (-(therm_v.array().square() / macro_temperature_.array()).exp());
+
+            energy_flux_tmp = 0.8 * (1.0 - settings::shakhov::Pr) * macro_energy_flux_.array() * therm_v.array() / (macro_density_.array() * macro_temperature_.array() * macro_temperature_.array());
+
+            f1s = fs_tmp.array() * (1.0 + energy_flux_tmp.array() * ((therm_v.array().square()) / macro_temperature_.array() - 1.5));
+
+            f2s = fs_tmp.array() * macro_temperature_.array() * (1.0 + energy_flux_tmp.array() * (therm_v.array().square() / macro_temperature_.array() - 0.5));
+
+            S1_[vi] = nu.array() * f1s.array();
+            S2_[vi] = nu.array() * f2s.array();
+        }
+
+        // std::cout << "f1_source_S: " << f1_source_S_.row(xi) << std::endl;
+        // std::cout << "f2_source_S: " << f2_source_S_.row(xi)<< std::endl;
+        // std::cout << "f1_source_G: " << f1_source_G_.row(xi)<< std::endl;
+        // std::cout << "f2_source_G: " << f2_source_G_.row(xi) << std::endl;
+    }
+
+    void Shakhov1D1V::Initialize()
+    {
+        bc_density_left_ = 0.0;
+        bc_density_right_ = 0.0;
+        bc_temperature_left_ = 0.0;
+        bc_temperature_right_ = 0.0;
+
+        double v, value;
+        for (int vi = 0; vi < Nv_; vi++)
+        {
+            v = v_vec_[vi];
+            value = std::sqrt(1.0 / M_PI) * std::exp(-v * v);
+            // value = numerics::MaxwellianDistribution(v, 1.5*1.5);
+            // f1_[vi] = MatrixXd::Constant(Nx_, Np_, value);
+            // f2_[vi] = MatrixXd::Constant(Nx_, Np_, value);
+            f1_[vi].array() = value;
+            f2_[vi].array() = value;
+        }
+    }
+
+    void Shakhov1D1V::ReNormalize()
+    {
+        double f1_sum = 0.0;
+        for (int vi = 0; vi < Nv_; vi++)
+        {
+            f1_sum += f1_[vi].sum();
+        }
+        f1_sum /= (Nv_ * Nx_ * Np_);
+
+        for (int vi = 0; vi < Nv_; vi++)
+        {
+            f1_[vi] /= f1_sum;
+            f2_[vi] /= f1_sum;
+        }
+    }
+
+    void Shakhov1D1V::Solve(double tolerance, int max_iter)
+    {
+        // Initialize VDF
+        Initialize();
+
+        VectorXd temperature_old, density_old, velocity_old, energy_flux_old;
+
+        UpdateMacroVariables();
+
+        std::cout << "Macro density: " << macro_density_.transpose() << std::endl;
+
+        temperature_old = macro_temperature_;
+        density_old = macro_density_;
+        velocity_old = macro_velocity_;
+        energy_flux_old = macro_energy_flux_;
+
+        // Update boundary conditions
+        UpdateF1BoundaryValues();
+        UpdateBCDensity();
+        UpdateBCVDF();
+
+        double residual = 999.0;
+        double resT, resn, resu, resq = 0.0;
+        double MASS;
+
+        std::vector<double> mass_hist;
+
+        // numerics::Trapezoid(macro_density_,MASS);
+        // MASS = macro_density_.sum() * dx_ / 2.0;
+        double volume = 1.0;
+        MASS = macro_density_.sum() / volume;
+        std::cout << "Initial Mass: " << MASS << std::endl;
+        mass_hist.push_back(MASS);
+        int iter = 0;
+
+        // Prepare hyperbolic solver
+        hyperbolic_->Prepare();
+        while (residual > tolerance && iter < max_iter)
+        {
+            MASS = macro_density_.sum() / volume;
+            // std::cout << "Mass: " << MASS << std::endl;
+            mass_hist.push_back(MASS);
+
+            if (iter % settings::shakhov::output_interval == 0)
+            {
+                if (settings::shakhov::printinfo)
+                {
+                    std::cout << "Iteration: " << iter << std::endl;
+                    // std::cout << "Macro density: " << macro_density_.transpose() << std::endl;
+                    std::cout << "macro temperature: " << macro_temperature_.transpose() << std::endl;
+                    // std::cout << "macro velocity: " << macro_velocity_.transpose() << std::endl;
+                    MASS = macro_density_.sum() / volume;
+                    std::cout << "Mass: " << MASS << std::endl;
+
+                    std::cout << "Residual in shakhov: " << residual << std::endl;
+                    std::cout << "resT: " << resT << ", resn: "
+                              << resn << ", resu: " << resu << ", resq: " << resq << std::endl;
+                    std::cout << "mean temperature: " << macro_temperature_.mean() << std::endl;
+                    std::cout << "min temperature: " << macro_temperature_.minCoeff() << std::endl;
+                    std::cout << "max temperature: " << macro_temperature_.maxCoeff() << std::endl;
+                }
+            }
+
+            // Compute source terms
+            // std::cout << "Iteration: " << iter << std::endl;
+            ComputeSourceFs();
+
+            // Solve f1 and f2 using DG method
+            for (int vi = 0; vi <= Nv_; ++vi)
+            {
+                hyperbolic_->
+                dg_solvers_f1_[vi]->ApplyBC(f1_bc_left_(vi), f1_bc_right_(vi));
+
+                // std::cout << "111" << std::endl;
+
+                dg_solvers_f1_[vi]->AssembleSystems(f1_source_G_.col(vi), f1_source_S_.col(vi));
+                // std::cout << "222" << std::endl;
+
+                dg_solvers_f2_[vi]->ApplyBC(f2_bc_left_(vi), f2_bc_right_(vi));
+
+                dg_solvers_f2_[vi]->AssembleSystems(f2_source_G_.col(vi), f2_source_S_.col(vi));
+                // std::cout << "333" << std::endl;
+
+                dg_solvers_f1_[vi]->Solve(constants::dg_tolerance, constants::dg_max_iter);
+                dg_solvers_f2_[vi]->Solve(constants::dg_tolerance, constants::dg_max_iter);
+
+                // f1_.col(vi) = dg_solvers_f1_[vi]->GetSolution();
+                // f2_.col(vi) = dg_solvers_f2_[vi]->GetSolution();
+                f1_.col(vi) = dg_solvers_f1_[vi]->GetSolutionAtQuad();
+                f2_.col(vi) = dg_solvers_f2_[vi]->GetSolutionAtQuad();
+
+                // std::cout << "f1 solution for velocity: " << v_vec_(vi) << " is: " << f1_.col(vi).transpose() << std::endl;
+                // std::cout << "f2 solution for velocity: " << v_vec_(vi) << " is: " << f2_.col(vi).transpose() << std::endl;
+            }
+
+            ReNormalize();
+
+            UpdateMacroVariables();
+            UpdateBCDensity();
+            UpdateBCVDF();
+
+            resT = (macro_temperature_ - temperature_old).norm() / macro_temperature_.norm();
+            resn = (macro_density_ - density_old).norm() / macro_density_.norm();
+            resu = (macro_velocity_ - velocity_old).norm(); // 速度趋于0所以不用相对误差
+            resq = (macro_energy_flux_ - energy_flux_old).norm() / macro_energy_flux_.norm();
+            residual = std::max({resT, resn, resq});
+            // residual = (resT + resn + resq) / 3.0;
+
+            temperature_old = macro_temperature_;
+            density_old = macro_density_;
+            velocity_old = macro_velocity_;
+            energy_flux_old = macro_energy_flux_;
+            iter++;
+        }
+        numerics::WriteVec(filename + "mass_hist.csv", mass_hist);
+        std::cout << "final num iter: " << iter << std::endl;
+    }
+
 }
+
+#pragma endregion

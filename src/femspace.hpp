@@ -88,8 +88,8 @@ namespace femspace
             MatrixXd Vandinv_; // [Np, Np] Vandermonde矩阵逆
             MatrixXd Dx_; // [Np, Np] 微分矩阵, uh' = Dx * uh
             // 外插点
-            VectorXd lagrange_left_values_; // [Nx] 左侧插值点值
-            VectorXd lagrange_right_values_; // [Nx] 右侧插值点值
+            VectorXd lagrange_left_values_; // [Np] 左侧插值点值
+            VectorXd lagrange_right_values_; // [Np] 右侧插值点值
 
             // 质量，刚度矩阵
             MatrixXd mass_, stiff_; // [Np, Np] 质量矩阵，刚度矩阵

@@ -29,4 +29,10 @@ namespace numerics
     void ComputeJacobiCoefficients_deepseek(int order, double alpha, double beta, MatrixXd& coeffs);
 
     double ComputeConditionNumber(const Eigen::MatrixXd& A);
+
+    void Trapezoid(const std::vector<MatrixXd>& f,const std::vector<double> x, MatrixXd& result);
+
+    void Trapezoid(const std::vector<MatrixXd>& f, const std::vector<double> scale, const std::vector<double> x, MatrixXd& result);
+
+    void Trapezoid(const std::vector<double>& f, const std::vector<double> x, double& result);
 }
