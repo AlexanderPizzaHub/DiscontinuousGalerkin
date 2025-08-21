@@ -34,4 +34,7 @@ namespace test
     double TestQuadrature(int order, double xl, double xr);
 
     double TestHyperbolic(int order, int Nx);
+
+    void TestShakhov1D1V(int order);
+
 }

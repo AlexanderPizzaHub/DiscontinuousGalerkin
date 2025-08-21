@@ -23,6 +23,7 @@ namespace settings
         // const double Kn0=0.01;
         const double PI = 3.14159265358979323846;
         const double delta_0 = sqrt(PI) / (2.0 * Kn0);
+        const double delta_eff = -4.0 * delta_0;
         const double Pr = 2.0 / 3.0;
         // const double omega = 0.5;
         // const double omega = 0.74;
@@ -33,7 +34,7 @@ namespace settings
         const double T_wall_l = 300.0 / 300.0;
 
         const double u_wall_r = 0.0;
-        const double T_wall_r = 600.0 / 300.0;
+        const double T_wall_r = 300.0 / 300.0;
 
         const double T_mach_l = 1.0;
         const double T_mach_r = 1.0;
@@ -46,8 +47,8 @@ namespace settings
 
         const double vm = 10.0;
 
-        const int Nx = 50;
-        const int Nv = 50;
+        const int Nx = 10;
+        const int Nv = 10;
 
         /*
         SOLVER
@@ -61,6 +62,6 @@ namespace settings
         const bool printinfo = true;    // print info during the simulation
         const bool write_result = true; // write result to file
 
-        const int output_interval = 100;
+        const int output_interval = 1;
     }
 }

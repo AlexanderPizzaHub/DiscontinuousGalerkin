@@ -28,11 +28,7 @@ namespace femapplication
 
         void Prepare();
 
-        void UpdateBCValues(double left_bc_value, double right_bc_value)
-        {
-            left_bc_value_ = left_bc_value;
-            right_bc_value_ = right_bc_value;
-        }
+        void UpdateBCValues(double left_bc_value, double right_bc_value);
         // 求解
         void Solve();
 
@@ -49,8 +45,8 @@ namespace femapplication
         double velocity_;              // 速度
         double delta_;
 
-        std::vector<MatrixXd> system_lhs_matrix; // [Nx, Np, Np] 系统矩阵
-        std::vector<VectorXd> system_rhs_vector; // [Nx, Np] 系
+        std::vector<MatrixXd> system_lhs_matrix; // [Nx, Np, Np] 系统左端矩阵
+        std::vector<VectorXd> system_rhs_vector; // [Nx, Np] 系统右端项
 
         std::vector<VectorXd> solution_; // [Nx, Np] 解向量
     };
@@ -60,23 +56,6 @@ namespace femapplication
     public:
         Shakhov1D1V(std::vector<double> v, femspace::FEMSpace& femspace);
         ~Shakhov1D1V() = default;
-
-        // compute macro
-        void UpdateMacroVariables();
-
-        // compute VDF boundary value
-        void UpdateF1BoundaryValues();
-
-        // boundary condition update
-        void UpdateBCDensity();
-        void UpdateBCVDF();
-
-        
-
-        // compute source
-        void ComputeSourceFs();
-
-        void ReNormalize();
 
         // solve both f1 and f2
         void Solve(double tolerance = 1e-6, int max_iter = 1000);
@@ -98,7 +77,8 @@ namespace femapplication
         int Nx_, Np_; // Nx: number of elements, Np: number of polynomial order + 1
         
         femspace::FEMSpace *femspace_; // FEM空间
-        Hyperbolic *hyperbolic_; // 双曲方程
+
+        std::vector<Hyperbolic*>  hyperbolic_; // [Nv] 双曲方程
 
         std::vector<double> v_vec_;
 
@@ -135,5 +115,20 @@ namespace femapplication
         // macro temperature on boundary
         double bc_temperature_left_;
         double bc_temperature_right_;
+
+        // compute macro
+        void UpdateMacroVariables();
+
+        // compute VDF boundary value
+        void UpdateF1BoundaryValues();
+
+        // boundary condition update
+        void UpdateBCDensity();
+        void UpdateBCVDF();
+
+        // compute source
+        void ComputeSourceFs();
+
+        void ReNormalize();
     };
 }

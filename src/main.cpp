@@ -24,15 +24,17 @@ int main(int argc, char *argv[])
     // }
     // test::TestProjection(1, 0.0, 1.0);
 
-    std::cout << "order Nx err" <<std::endl;
-    for (int NxRefine = 0; NxRefine <= 10; NxRefine++)
-    {
-        for (int order = 1; order <= 10; order++)
-        {
-            double l2error = test::TestHyperbolic(order, std::pow(2, NxRefine));
-            std::cout << order << " " << std::pow(2, NxRefine) << " " << l2error << std::endl;
-        }
-    }
+    // std::cout << "order Nx err" <<std::endl;
+    // for (int NxRefine = 0; NxRefine <= 10; NxRefine++)
+    // {
+    //     for (int order = 1; order <= 10; order++)
+    //     {
+    //         double l2error = test::TestHyperbolic(order, std::pow(2, NxRefine));
+    //         std::cout << order << " " << std::pow(2, NxRefine) << " " << l2error << std::endl;
+    //     }
+    //  }
+
+    test::TestShakhov1D1V(1);
 
     return 0;
 }

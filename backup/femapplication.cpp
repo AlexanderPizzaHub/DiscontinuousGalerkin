@@ -292,10 +292,10 @@ namespace femapplication
         macro_temperature_ = 2.0 * tmp_mat.array() / (3.0 * macro_density_.array());
         numerics::Trapezoid(flux_rhs, v_vec_, macro_energy_flux_);
 
-       // std::cout << "Macro density: " << macro_density_.transpose() << std::endl;
-        //std::cout << "Macro velocity: " << macro_velocity_.transpose() << std::endl;
-        //std::cout << "Macro temperature: " << macro_temperature_.transpose() << std::endl;
-        //std::cout << "Macro energy flux: " << macro_energy_flux_.transpose() << std::endl;
+        std::cout << "Macro density: " << macro_density_.transpose() << std::endl;
+        std::cout << "Macro velocity: " << macro_velocity_.transpose() << std::endl;
+        std::cout << "Macro temperature: " << macro_temperature_.transpose() << std::endl;
+        std::cout << "Macro energy flux: " << macro_energy_flux_.transpose() << std::endl;
     }
 
     void Shakhov1D1V::UpdateF1BoundaryValues()
@@ -496,6 +496,10 @@ namespace femapplication
 
         UpdateMacroVariables();
 
+        std::cout << "Macro density: " << macro_density_.transpose() << std::endl;
+
+        std::cout << "!!!" << std::endl;
+
         temperature_old = macro_temperature_;
         density_old = macro_density_;
         velocity_old = macro_velocity_;
@@ -503,8 +507,11 @@ namespace femapplication
 
         // Update boundary conditions
         UpdateF1BoundaryValues();
+        std::cout << "!!!" << std::endl;
         UpdateBCDensity();
+        std::cout << "!!!" << std::endl;
         UpdateBCVDF();
+        std::cout << "!!!" << std::endl;
 
         double residual = 999.0;
         double resT, resn, resu, resq = 0.0;
@@ -515,15 +522,20 @@ namespace femapplication
         // numerics::Trapezoid(macro_density_,MASS);
         // MASS = macro_density_.sum() * dx_ / 2.0;
         double volume = 1.0;
+        std::cout << "??" << std::endl;
         MASS = macro_density_.sum() / volume;
+        std::cout << "@??" << std::endl;
+        std::cout << "Initial Mass: " << MASS << std::endl;
         mass_hist.push_back(MASS);
         int iter = 0;
 
         // Prepare hyperbolic solver
+        std::cout << "@@@" << std::endl;
         for (int vi = 0; vi < Nv_; ++vi)
         {
             hyperbolic_[vi]->Prepare();
         }
+        std::cout << "@@@" << std::endl;
 
         while (residual > tolerance && iter < max_iter)
         {
@@ -536,43 +548,48 @@ namespace femapplication
                 if (settings::shakhov::printinfo)
                 {
                     std::cout << "Iteration: " << iter << std::endl;
-                    std::cout << "Macro density: " << macro_density_.transpose() << std::endl;
+                    // std::cout << "Macro density: " << macro_density_.transpose() << std::endl;
                     std::cout << "macro temperature: " << macro_temperature_.transpose() << std::endl;
                     // std::cout << "macro velocity: " << macro_velocity_.transpose() << std::endl;
                     MASS = macro_density_.sum() / volume;
                     std::cout << "Mass: " << MASS << std::endl;
 
-                    //std::cout << "Residual in shakhov: " << residual << std::endl;
-                    //std::cout << "resT: " << resT << ", resn: "
-                    //          << resn << ", resu: " << resu << ", resq: " << resq << std::endl;
+                    std::cout << "Residual in shakhov: " << residual << std::endl;
+                    std::cout << "resT: " << resT << ", resn: "
+                              << resn << ", resu: " << resu << ", resq: " << resq << std::endl;
                     std::cout << "mean temperature: " << macro_temperature_.mean() << std::endl;
-                    //std::cout << "min temperature: " << macro_temperature_.minCoeff() << std::endl;
-                    //std::cout << "max temperature: " << macro_temperature_.maxCoeff() << std::endl;
+                    std::cout << "min temperature: " << macro_temperature_.minCoeff() << std::endl;
+                    std::cout << "max temperature: " << macro_temperature_.maxCoeff() << std::endl;
                 }
             }
 
-            // Compute macro variables
-            UpdateMacroVariables();
-
-            // Update boundary conditions
-            UpdateF1BoundaryValues();
-            UpdateBCDensity();
-            UpdateBCVDF();
-
             // Compute source terms
+            // std::cout << "Iteration: " << iter << std::endl;
             ComputeSourceFs();
-
+            std::cout << "ComputeSourceFs done." << std::endl;
+            std::cout << "f1_bc_left: " << f1_bc_left_.transpose() << std::endl;
+            std::cout << "f1_bc_right: " << f1_bc_right_.transpose() << std::endl;
+            std::cout << "f2_bc_left: " << f2_bc_left_.transpose() << std::endl;
+            std::cout << "f2_bc_right: " << f2_bc_right_.transpose() << std::endl;
             // Solve f1 and f2 using DG method
             for (int vi = 0; vi < Nv_; ++vi)
             {
                 hyperbolic_[vi]->UpdateBCValues(f1_bc_left_(vi), f1_bc_right_(vi));
+                std::cout << "Hyperbolic solve for f1, v: " << v_vec_[vi] << std::endl;
                 hyperbolic_[vi]->Solve(G_, S1_[vi], f1_[vi]);
 
                 hyperbolic_[vi]->UpdateBCValues(f2_bc_left_(vi), f2_bc_right_(vi));
+                std::cout << "Hyperbolic solve for f2, v: " << v_vec_[vi] << std::endl;
                 hyperbolic_[vi]->Solve(G_, S2_[vi], f2_[vi]);
             }
+            std::cout << "Hyperbolic solve done." << std::endl;
 
             ReNormalize();
+
+            UpdateMacroVariables();
+            UpdateF1BoundaryValues();
+            UpdateBCDensity();
+            UpdateBCVDF();
 
             resT = (macro_temperature_ - temperature_old).norm() / macro_temperature_.norm();
             resn = (macro_density_ - density_old).norm() / macro_density_.norm();

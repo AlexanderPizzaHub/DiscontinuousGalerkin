@@ -273,19 +273,33 @@ namespace test
             cell_indices.push_back(i);
             elem2vert_indices.push_back({i, i + 1}); // Example connectivity
         }
+
         femmesh::FEMMesh mesh(vertex_coords, vert_indices, cell_indices, elem2vert_indices);
 
         femspace::FEMSpace fem_space(mesh, order);
-        // std::cout << "space set" << std::endl;
 
-        femapplication::Hyperbolic hyperbolic_solver(fem_space, 1.0, 1.0, 1.0, 0.0);
-        // std::cout << "solver set" << std::endl;
+        std::vector<VectorXd> G_values = fem_space.Interpolate(settings::hyperbolic::G);
+        std::vector<VectorXd> S_values = fem_space.Interpolate(settings::hyperbolic::S);
+
+        MatrixXd G = MatrixXd::Zero(Nx, order + 1);
+        MatrixXd S = MatrixXd::Zero(Nx, order + 1);
+        for (int i = 0; i < Nx; i++)
+        {
+            G.row(i) = G_values[i].transpose();
+            S.row(i) = S_values[i].transpose();
+        }
+        MatrixXd solutionmat = MatrixXd::Zero(Nx, order + 1);
+
+        
+
+        femapplication::Hyperbolic hyperbolic_solver(fem_space, 1.0, 1.0, 1.0, 1.0);
 
         hyperbolic_solver.Prepare();
-        // std::cout << "prepared " << std::endl;
-        hyperbolic_solver.Solve();
 
-        std::vector<VectorXd> solution = hyperbolic_solver.GetSolution();
+        hyperbolic_solver.Solve(G,S,solutionmat);
+        
+
+        //std::vector<VectorXd> solution;// = hyperbolic_solver.GetSolution();
 
         VectorXd approx_solution = VectorXd::Zero(Nx);
         VectorXd exact_solution = VectorXd::Zero(Nx);
@@ -299,7 +313,8 @@ namespace test
             femspace::REFFE *ref_elem = fem_space.GetRefElem();
 
             center_x = (fe.xl_ + fe.xr_) / 2.0;
-            ref_elem->ComputeFuncExtrapolation(center_x, fe, solution[i],approx_solution(i));
+            VectorXd solutionrow = solutionmat.row(i);
+            ref_elem->ComputeFuncExtrapolation(center_x, fe, solutionrow,approx_solution(i));
 
             //std::cout << "Element solution at " << center_x << ": " << solution[i].transpose()<< std::endl;
             //std::cout << "Corresponding coords: "<< fe.node_coords_.transpose() << std::endl;
@@ -314,6 +329,57 @@ namespace test
         // std::cout << exact_solution.transpose() << std::endl;
 
         return l2_error;
+    }
+
+    void TestShakhov1D1V(int order)
+    {
+        std::vector<double> vertex_coords;
+        std::vector<int> vert_indices;
+        std::vector<int> cell_indices;
+        std::vector<std::vector<int>> elem2vert_indices;
+
+        int Nx = settings::shakhov::Nx; // Number of elements
+        double xl = settings::shakhov::xl; // Left boundary
+        double xr = settings::shakhov::xr; // Right boundary
+
+        int Nv = settings::shakhov::Nv; // Number of velocity points
+        double v_left = -settings::shakhov::vm; // Left velocity boundary
+        double v_right = settings::shakhov::vm;
+
+        std::vector<double> v_vec(Nv);
+
+        for (int i = 0; i < Nx + 1; i++)
+        {
+            vertex_coords.push_back(i * ((xr-xl) / Nx)); // Example coordinates
+            vert_indices.push_back(i);
+        }
+
+        for (int i = 0; i <= Nv; i++)
+        {
+            v_vec[i] = v_left + i * (v_right - v_left) / (Nv);
+        }   
+
+        for (int i = 0; i < Nx; i++)
+        {
+            cell_indices.push_back(i);
+            elem2vert_indices.push_back({i, i + 1}); // Example connectivity
+        }
+        femmesh::FEMMesh mesh(vertex_coords, vert_indices, cell_indices, elem2vert_indices);
+
+        femspace::FEMSpace fem_space(mesh, order);
+
+        femapplication::Shakhov1D1V shakhov_solver(v_vec,fem_space);
+
+        shakhov_solver.Initialize();
+        // std::cout << "shakhov solver initialized" << std::endl;
+        shakhov_solver.Solve(-1.0,10);
+        // std::cout << "shakhov solver solved" << std::endl;
+
+        /*
+        现问题：出现震荡，没有收敛。
+        考虑：把旧版shakhov的第一步density输出来，和现在的结果对比。看看是哪里出了问题
+        
+        */
     }
 
 }
