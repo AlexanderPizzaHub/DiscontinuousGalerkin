@@ -440,11 +440,11 @@ namespace femapplication
 
             S1_[vi] = nu.array() * f1s.array();
             S2_[vi] = nu.array() * f2s.array();
-            std::cout << "f1_source_S: " << S1_[vi] << std::endl;
+            //std::cout << "f1_source_S: " << S1_[vi] << std::endl;
         }
 
         // std::cout << "f2_source_S: " << f2_source_S_.row(xi)<< std::endl;
-        std::cout << "Source_G: " << G_ << std::endl;
+        //std::cout << "Source_G: " << G_ << std::endl;
         // std::cout << "f2_source_G: " << f2_source_G_.row(xi) << std::endl;
     }
 
@@ -566,11 +566,11 @@ namespace femapplication
             // Compute source terms
             // std::cout << "Iteration: " << iter << std::endl;
             ComputeSourceFs();
-            std::cout << "ComputeSourceFs done." << std::endl;
-            std::cout << "f1_bc_left: " << f1_bc_left_.transpose() << std::endl;
-            std::cout << "f1_bc_right: " << f1_bc_right_.transpose() << std::endl;
-            std::cout << "f2_bc_left: " << f2_bc_left_.transpose() << std::endl;
-            std::cout << "f2_bc_right: " << f2_bc_right_.transpose() << std::endl;
+            //std::cout << "ComputeSourceFs done." << std::endl;
+            //std::cout << "f1_bc_left: " << f1_bc_left_.transpose() << std::endl;
+            //std::cout << "f1_bc_right: " << f1_bc_right_.transpose() << std::endl;
+            //std::cout << "f2_bc_left: " << f2_bc_left_.transpose() << std::endl;
+            //std::cout << "f2_bc_right: " << f2_bc_right_.transpose() << std::endl;
             // Solve f1 and f2 using DG method
             for (int vi = 0; vi < Nv_; ++vi)
             {

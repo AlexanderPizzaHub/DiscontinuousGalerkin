@@ -23,7 +23,7 @@ namespace settings
         // const double Kn0=0.01;
         const double PI = 3.14159265358979323846;
         const double delta_0 = sqrt(PI) / (2.0 * Kn0);
-        const double delta_eff = -4.0 * delta_0;
+        const double delta_eff = - 4.0 * delta_0;
         const double Pr = 2.0 / 3.0;
         // const double omega = 0.5;
         // const double omega = 0.74;
@@ -31,7 +31,7 @@ namespace settings
 
         // bc
         const double u_wall_l = 0.0;
-        const double T_wall_l = 300.0 / 300.0;
+        const double T_wall_l = 600.0 / 300.0;
 
         const double u_wall_r = 0.0;
         const double T_wall_r = 300.0 / 300.0;
@@ -45,10 +45,10 @@ namespace settings
         const double xl = 0.0;
         const double xr = 1.0;
 
-        const double vm = 10.0;
+        const double vm = 15.0;
 
-        const int Nx = 10;
-        const int Nv = 10;
+        const int Nx = 100;
+        const int Nv = 100;
 
         /*
         SOLVER

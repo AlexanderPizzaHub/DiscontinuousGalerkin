@@ -33,8 +33,7 @@ int main(int argc, char *argv[])
     //         std::cout << order << " " << std::pow(2, NxRefine) << " " << l2error << std::endl;
     //     }
     //  }
-
-    test::TestShakhov1D1V(1);
+    test::TestShakhov1D1V(3);
 
     return 0;
 }
