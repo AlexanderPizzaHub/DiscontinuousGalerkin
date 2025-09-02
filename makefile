@@ -1,4 +1,7 @@
-CC          = g++ -std=c++11  -O3
+#CC          = /opt/homebrew/bin/g++-15 -std=c++11  -O3 -fopenmp
+#CC          = /opt/homebrew/bin/gcc-15 -std=c++11  -O3 -fopenmp
+CC          = /opt/homebrew/opt/llvm/bin/clang++ -std=c++11  -O3 -fopenmp
+
 
 PRGM = DG
 DEPS = $(shell find ./src -name "*.hpp")

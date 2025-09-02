@@ -15,6 +15,7 @@ femmesh -> femspace -> femapplication
 #include "../eigen-3.4.0/Eigen/Dense"
 
 #include <string>
+#include <chrono>
 
 namespace femapplication
 {
@@ -49,6 +50,10 @@ namespace femapplication
         std::vector<VectorXd> system_rhs_vector; // [Nx, Np] 系统右端项
 
         std::vector<VectorXd> solution_; // [Nx, Np] 解向量
+
+        // TEMP VARIABLES
+        MatrixXd solution_old_;
+        VectorXd tmpvec_, G_row_, S_row_;
     };
 
     class Shakhov1D1V
@@ -138,7 +143,6 @@ namespace femapplication
 
         void ReNormalize();
 
-        // TEMP VARIABLES 
-        //MatrixXd solution_old;
+        
     };
 }
