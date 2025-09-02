@@ -330,7 +330,7 @@ namespace femspace
         }
     }
 
-    void FEMSpace::Quaduature(const VectorXd &func_values, int elem_idx, double &result)
+    void FEMSpace::Quadrature(const VectorXd &func_values, int elem_idx, double &result)
     {
         result = 0.0;
         for (int j = 0; j < Np_; j++)

@@ -113,7 +113,7 @@ namespace femspace
     class FEMSpace
     {
         public:
-            FEMSpace(femmesh::FEMMesh& mesh, int order); // Np = order - 1;
+            FEMSpace(femmesh::FEMMesh& mesh, int order); // Np = order + 1;
             ~FEMSpace() = default;
 
             // 积分核函数
@@ -137,7 +137,7 @@ namespace femspace
 
             // 求积式
             //void Quaduature(const VectorXd& func_values,double xl, double xr, double& result);
-            void Quaduature(const VectorXd& func_values, int elem_idx, double& result);
+            void Quadrature(const VectorXd& func_values, int elem_idx, double& result);
 
             // getters
             femmesh::FEMMesh* GetMesh() const { return mesh_; }

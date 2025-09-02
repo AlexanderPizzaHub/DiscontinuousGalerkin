@@ -13,6 +13,7 @@ test examples for modules
 #include "../eigen-3.4.0/Eigen/Dense"
 
 #include <iostream>
+#include <chrono>
 
 namespace test
 {

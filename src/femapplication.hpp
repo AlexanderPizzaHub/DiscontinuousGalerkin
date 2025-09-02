@@ -62,6 +62,8 @@ namespace femapplication
 
         void Initialize();
 
+        std::vector<double> dv_vec_;
+
         // getters
         std::vector<MatrixXd> GetF1() const { return f1_; }
         std::vector<MatrixXd> GetF2() const { return f2_; }
@@ -75,12 +77,13 @@ namespace femapplication
         double v_left_, v_right_;
 
         int Nx_, Np_; // Nx: number of elements, Np: number of polynomial order + 1
-        
+
         femspace::FEMSpace *femspace_; // FEM空间
 
         std::vector<Hyperbolic*>  hyperbolic_; // [Nv] 双曲方程
 
         std::vector<double> v_vec_;
+        
 
         // VDF function. For each v, each row: Np quadrature points, each column: Nx elements
         std::vector<MatrixXd> f1_; // [Nv, Nx, Np] 
@@ -126,9 +129,16 @@ namespace femapplication
         void UpdateBCDensity();
         void UpdateBCVDF();
 
+        // velocity quadrature by dv_vec
+        void VelocityTrapezoid(const std::vector<MatrixXd>& f, MatrixXd& result);
+        void VelocityTrapezoid(const std::vector<MatrixXd>& f, const std::vector<double> scale,  MatrixXd& result);
+
         // compute source
         void ComputeSourceFs();
 
         void ReNormalize();
+
+        // TEMP VARIABLES 
+        //MatrixXd solution_old;
     };
 }

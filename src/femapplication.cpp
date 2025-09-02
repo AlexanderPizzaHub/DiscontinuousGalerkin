@@ -140,7 +140,7 @@ namespace femapplication
         //std::cout << "Solving hyperbolic equation with velocity: " << velocity_ << std::endl;
         //std::cout << "G: " << G << std::endl;
         //std::cout << "S: " << S << std::endl;
-        while (iter < 10000 && residual > 1e-8)
+        while (iter < 10000 && residual > 1e-12)
         {
             if (velocity_ >= 0.0)
             {
@@ -283,9 +283,13 @@ namespace femapplication
             //std::cout << "f1_[" << vi << "]: " << f1_[vi] << std::endl;
        // }
         numerics::Trapezoid(f1_, v_vec_, macro_density_);
+        //VelocityTrapezoid(f1_, macro_density_);
+        //numerics::Simpson(f1_, v_vec_, macro_density_);
 
         // velocity
         numerics::Trapezoid(f1_, v_vec_, v_vec_, tmp_mat);
+        //VelocityTrapezoid(f1_, v_vec_, tmp_mat);
+        //numerics::Simpson(f1_, v_vec_, tmp_mat);
         macro_velocity_ = tmp_mat.array() / macro_density_.array();
 
         // temperature and energy flux
@@ -309,15 +313,17 @@ namespace femapplication
             flux_rhs[vi] = therm_speed.array() * therm_rhs[vi].array();
         }
         numerics::Trapezoid(therm_rhs, v_vec_, tmp_mat);
+        //VelocityTrapezoid(therm_rhs, tmp_mat);
         macro_temperature_ = 2.0 * tmp_mat.array() / (3.0 * macro_density_.array());
         numerics::Trapezoid(flux_rhs, v_vec_, macro_energy_flux_);
+        //VelocityTrapezoid(flux_rhs, macro_energy_flux_);
 
-        std::cout << "in macro updating"    << std::endl;
-        std::cout << "Macro density: " << macro_density_.transpose() << std::endl;
-        std::cout << "Macro velocity: " << macro_velocity_.transpose() << std::endl;
-        std::cout << "Macro temperature: " << macro_temperature_.transpose() << std::endl;
-        std::cout << "Macro energy flux: " << macro_energy_flux_.transpose() << std::endl;
-        std::cout << "macro update finished" << std::endl;
+        // std::cout << "in macro updating"    << std::endl;
+        // std::cout << "Macro density: " << macro_density_.transpose() << std::endl;
+        // std::cout << "Macro velocity: " << macro_velocity_.transpose() << std::endl;
+        // std::cout << "Macro temperature: " << macro_temperature_.transpose() << std::endl;
+        // std::cout << "Macro energy flux: " << macro_energy_flux_.transpose() << std::endl;
+        // std::cout << "macro update finished" << std::endl;
     }
 
     void Shakhov1D1V::UpdateF1BoundaryValues()
@@ -496,22 +502,54 @@ namespace femapplication
         using namespace settings::shakhov;
         //std::cout << "in normalization " << std::endl;
         double f1_sum = 0.0;
-        for (int vi = 0; vi < Nv_; vi++)
-        {
-            f1_sum += f1_[vi].sum();
-           // std::cout << "fi_[" << vi << "] : " << f1_[vi] << std::endl;
-            //std::cout << "f1_[" << vi << "] sum: " << f1_[vi].sum() << std::endl;
-        }
-        //std::cout << "f1_sum: " << f1_sum << std::endl;
-        f1_sum = f1_sum / Nv_ * 2.0 * vm / (Nx_ * Np_) * (xr-xl);
+        double tmp_var = 0.0;
+        // for (int vi = 0; vi < Nv_; vi++)
+        // {
+        //     //std::cout << "f1_ at vi=" << vi << f1_[vi] << std::endl;
+        //     f1_sum += f1_[vi].sum();
+        //    // std::cout << "fi_[" << vi << "] : " << f1_[vi] << std::endl;
+        //     //std::cout << "f1_[" << vi << "] sum: " << f1_[vi].sum() << std::endl;
+        // }
         
-
+        //std::cout << "f1_sum: " << f1_sum << std::endl;
+        //f1_sum = f1_sum / Nv_ * 2.0 * vm / (Nx_ * Np_) * (xr-xl);
+        //numerics::Trapezoid(macro_density_,x_vec_, f1_sum);
+        VectorXd macro_density_elem = VectorXd::Zero(Nx_);
+        for(int elem_idx = 0 ;elem_idx<Nx_;elem_idx++)
+        {
+            macro_density_elem = macro_density_.row(elem_idx);
+            femspace_->Quadrature(macro_density_elem, elem_idx, tmp_var);
+            f1_sum += tmp_var;
+        }
+        
+        //f1_sum = 0.99999982;
+        std::cout << "normalization factor: " << f1_sum << std::endl;
         for (int vi = 0; vi < Nv_; vi++)
         {
             f1_[vi] /= (f1_sum);
             f2_[vi] /= f1_sum;
             
             //std::cout << "f1_[" << vi << "] sum: " << f1_[vi].sum() << std::endl;
+        }
+    }
+
+    void Shakhov1D1V::VelocityTrapezoid(const std::vector<MatrixXd>& f, MatrixXd& result)
+    {
+        result = MatrixXd::Zero(Nx_, Np_);
+        int Nv = f.size();
+        for(int vi=0; vi<Nv; vi++)
+        {
+            result.array() += f[vi].array() * dv_vec_[vi];
+        }
+    }
+
+    void Shakhov1D1V::VelocityTrapezoid(const std::vector<MatrixXd>& f, const std::vector<double> scale, MatrixXd& result)
+    {
+        result = MatrixXd::Zero(Nx_, Np_);
+        int Nv = f.size();
+        for(int vi=0; vi<Nv; vi++)
+        {
+            result.array() += f[vi].array() * scale[vi] * dv_vec_[vi];
         }
     }
 
@@ -525,8 +563,19 @@ namespace femapplication
         MatrixXd velocity_old = MatrixXd::Zero(Nx_, Np_);
         MatrixXd energy_flux_old = MatrixXd::Zero(Nx_, Np_);
 
+        std::cout << "checking mass.. " << std::endl;
+
         UpdateMacroVariables();
 
+        ReNormalize();
+
+        UpdateMacroVariables();
+
+        ReNormalize();
+
+        UpdateMacroVariables();
+
+        std::cout << "Initial macro variables done. " << std::endl;
         temperature_old = macro_temperature_;
         density_old = macro_density_;
         velocity_old = macro_velocity_;
@@ -567,28 +616,20 @@ namespace femapplication
                 if (settings::shakhov::printinfo)
                 {
                     std::cout << "Iteration: " << iter << std::endl;
-                    std::cout << "Macro density: " << macro_density_.transpose() << std::endl;
-                    std::cout << "macro temperature: " << macro_temperature_.transpose() << std::endl;
-                    std::cout << "macro velocity: " << macro_velocity_.transpose() << std::endl;
+                    //std::cout << "Macro density: " << macro_density_.transpose() << std::endl;
+                    //std::cout << "macro temperature: " << macro_temperature_.transpose() << std::endl;
+                    //std::cout << "macro velocity: " << macro_velocity_.transpose() << std::endl;
                     MASS = macro_density_.sum() / volume;
                     std::cout << "Mass: " << MASS << std::endl;
 
-                    //std::cout << "Residual in shakhov: " << residual << std::endl;
-                    //std::cout << "resT: " << resT << ", resn: "
-                    //          << resn << ", resu: " << resu << ", resq: " << resq << std::endl;
-                    std::cout << "mean temperature: " << macro_temperature_.mean() << std::endl;
+                    std::cout << "Residual in shakhov: " << residual << std::endl;
+                    std::cout << "resT: " << resT << ", resn: "
+                              << resn << ", resu: " << resu << ", resq: " << resq << std::endl;
+                    //std::cout << "mean temperature: " << macro_temperature_.mean() << std::endl;
                     //std::cout << "min temperature: " << macro_temperature_.minCoeff() << std::endl;
                     //std::cout << "max temperature: " << macro_temperature_.maxCoeff() << std::endl;
                 }
             }
-
-            // Compute macro variables
-            UpdateMacroVariables();
-
-            // Update boundary conditions
-            UpdateF1BoundaryValues();
-            UpdateBCDensity();
-            UpdateBCVDF();
 
             // Compute source terms
             ComputeSourceFs();
@@ -602,14 +643,25 @@ namespace femapplication
                 hyperbolic_[vi]->UpdateBCValues(f2_bc_left_(vi), f2_bc_right_(vi));
                 hyperbolic_[vi]->Solve(G_, S2_[vi], f2_[vi]);
             }
-
             ReNormalize();
+
+            // Compute macro variables
+            UpdateMacroVariables();
+
+            // Update boundary conditions
+            UpdateF1BoundaryValues();
+            UpdateBCDensity();
+            UpdateBCVDF();
 
             resT = (macro_temperature_ - temperature_old).norm() / macro_temperature_.norm();
             resn = (macro_density_ - density_old).norm() / macro_density_.norm();
             resu = (macro_velocity_ - velocity_old).norm(); // 速度趋于0所以不用相对误差
             resq = (macro_energy_flux_ - energy_flux_old).norm() / macro_energy_flux_.norm();
+    
             residual = std::max({resT, resn, resq});
+        //std::cout << "resT: " << resT << ", resn: "
+                              //<< resn << ", resu: " << resu << ", resq: " << resq //<< std::endl;
+            //std::cout << "residual: " << residual << std::endl;
             // residual = (resT + resn + resq) / 3.0;
 
             temperature_old = macro_temperature_;

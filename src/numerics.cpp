@@ -286,6 +286,35 @@ namespace numerics
                 throw std::invalid_argument("x must be strictly increasing");
             }
             result.array() += 0.5 * h * (f[i].array() + f[i+1].array());
+            //result.array() += h * (f[i].array());
+        }
+    }
+
+    void Simpson(const std::vector<MatrixXd>& f,const std::vector<double> x, MatrixXd& result)
+    {
+        result = MatrixXd::Zero(f[0].rows(), f[0].cols());
+        int n = x.size();
+        if (n < 2)
+        {
+            throw std::invalid_argument("x must have at least two points");
+        }
+        if (f.size() != n)
+        {
+            throw std::invalid_argument("f must have the same number of elements as x");
+        }
+        if ((n - 1) % 2 != 0)
+        {
+            throw std::invalid_argument("number of intervals must be even for Simpson's rule");
+        }
+
+        for(int i=0;i<n-1;i+=2)
+        {
+            double h = x[i+2] - x[i];
+            if (h <= 0)
+            {
+                throw std::invalid_argument("x must be strictly increasing");
+            }
+            result.array() += h / 6.0 * (f[i].array() + 4.0 * f[i+1].array() + f[i+2].array());
         }
     }
 

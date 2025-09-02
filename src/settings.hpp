@@ -19,7 +19,7 @@ namespace settings
         //  const double Kn0 = 20.0;
         // const double Kn0 = 0.0645161;
         // const double Kn0 = 0.00645161;
-        const double Kn0 = 0.1;
+        const double Kn0 = 10.0;
         // const double Kn0=0.01;
         const double PI = 3.14159265358979323846;
         const double delta_0 = sqrt(PI) / (2.0 * Kn0);
@@ -31,10 +31,10 @@ namespace settings
 
         // bc
         const double u_wall_l = 0.0;
-        const double T_wall_l = 600.0 / 300.0;
+        const double T_wall_l = 300.0 / 300.0;
 
         const double u_wall_r = 0.0;
-        const double T_wall_r = 300.0 / 300.0;
+        const double T_wall_r = 600.0 / 300.0;
 
         const double T_mach_l = 1.0;
         const double T_mach_r = 1.0;
@@ -50,14 +50,16 @@ namespace settings
         const int Nx = 100;
         const int Nv = 100;
 
+        const double v_beta =3.0;
+
         /*
         SOLVER
         */
-        const int dg_max_iter = 100;
+        const int dg_max_iter = 1000;
         const double dg_tolerance = 1e-6;
 
-        const int shakhov_max_iter = 10000;
-        const double shakhov_tolerance = -1.0;
+        const int shakhov_max_iter = 30000;
+        const double shakhov_tolerance = 1e-6;
 
         const bool printinfo = true;    // print info during the simulation
         const bool write_result = true; // write result to file

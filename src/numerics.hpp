@@ -31,6 +31,7 @@ namespace numerics
     double ComputeConditionNumber(const Eigen::MatrixXd& A);
 
     void Trapezoid(const std::vector<MatrixXd>& f,const std::vector<double> x, MatrixXd& result);
+    void Simpson(const std::vector<MatrixXd>& f,const std::vector<double> x, MatrixXd& result);
 
     void Trapezoid(const std::vector<MatrixXd>& f, const std::vector<double> scale, const std::vector<double> x, MatrixXd& result);
 
